@@ -1,0 +1,503 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChattiNG — NG</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg:#0b1020; --panel:#141c30; --panel2:#1c2942;
+  --accent:#6c7cff; --text:#f4f6ff; --muted:#9ba8c4;
+  --border:#293650; --green:#46d6a0;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:Inter,system-ui,-apple-system,sans-serif;
+  min-height:100vh;
+}
+button,input{font:inherit}
+button{cursor:pointer;transition:.18s}
+button:hover{filter:brightness(1.12)}
+button:disabled{opacity:.45;cursor:not-allowed}
+input{
+  width:100%;padding:13px 14px;border-radius:12px;
+  background:#0b1325;border:1px solid var(--border);
+  color:var(--text);outline:none;
+}
+input:focus{border-color:var(--accent)}
+button.primary{
+  border:0;border-radius:12px;padding:13px 17px;
+  background:var(--accent);color:white;font-weight:700;
+}
+button.secondary{
+  border:1px solid var(--border);border-radius:12px;
+  padding:10px 14px;background:var(--panel2);color:white;
+}
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:17px 22px;border-bottom:1px solid var(--border);
+  background:rgba(20,28,48,.94);gap:12px;
+}
+.brand{font-size:23px;font-weight:850;letter-spacing:-1px}
+.brand span{color:var(--accent)}
+.small{font-size:12px;color:var(--muted)}
+#app{max-width:1050px;margin:auto;padding:22px}
+.auth-card{
+  max-width:430px;margin:7vh auto;background:var(--panel);
+  border:1px solid var(--border);border-radius:22px;padding:28px;
+}
+h1{font-size:28px;margin:0 0 8px}
+h2{font-size:18px;margin:0}
+p{line-height:1.5}
+.tabs{display:flex;gap:8px;margin:22px 0}
+.tabs button{flex:1}
+.field{margin:14px 0}
+.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:7px}
+#notice{font-size:13px;line-height:1.5;margin-top:14px;overflow-wrap:anywhere}
+.error{color:#ff9caa}.success{color:var(--green)}
+.chat-layout{
+  display:grid;grid-template-columns:230px minmax(0,1fr);
+  gap:18px;min-height:72vh;
+}
+.sidebar,.chat{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:20px;overflow:hidden;
+}
+.sidebar{padding:18px}
+.room{
+  margin-top:18px;padding:13px;border-radius:12px;
+  background:var(--panel2);border:1px solid #39476a;
+}
+.room strong{display:block;margin-bottom:4px}
+.chat{display:flex;flex-direction:column;min-height:70vh}
+.chat-head{
+  padding:17px 20px;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+}
+.status{font-size:12px;color:var(--green);margin-top:5px}
+#messages{
+  padding:18px;flex:1;overflow-y:auto;min-height:300px;
+  max-height:55vh;display:flex;flex-direction:column;gap:12px;
+}
+.message{
+  background:var(--panel2);padding:12px 14px;
+  border-radius:14px;max-width:90%;overflow-wrap:anywhere;
+  align-self:flex-start;
+}
+.message.mine{align-self:flex-end;background:#303b73}
+.message-top{display:flex;gap:10px;align-items:center;margin-bottom:6px}
+.message-user{font-size:12px;font-weight:800;color:#aebaff}
+.message-time{font-size:10px;color:var(--muted)}
+.message-content{white-space:pre-wrap;line-height:1.5}
+#empty{color:var(--muted);text-align:center;margin:auto}
+.composer{
+  display:flex;gap:9px;padding:14px;
+  border-top:1px solid var(--border);
+}
+.composer input{flex:1;min-width:0}
+.footer{text-align:center;color:var(--muted);font-size:11px;margin:22px 0}
+.hidden{display:none!important}
+@media(max-width:650px){
+  header{padding:14px}
+  #app{padding:12px}
+  .chat-layout{grid-template-columns:1fr}
+  .sidebar{padding:13px}
+  .sidebar .room{margin-top:10px}
+  .chat{min-height:65vh}
+  #messages{max-height:52vh;padding:12px}
+  .auth-card{margin:4vh auto;padding:22px}
+  .brand{font-size:21px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="brand">Chatti<span>NG</span></div>
+    <div class="small">Tu espacio para conectar</div>
+  </div>
+  <div id="header-user" class="small">Mensajería en línea</div>
+</header>
+
+<main id="app">
+  <section id="auth-view" class="auth-card">
+    <h1>¡Hola! 👋</h1>
+    <p class="small">Entra en ChattiNG y habla con tu comunidad.</p>
+
+    <div class="tabs">
+      <button id="login-tab" class="primary" type="button">Iniciar sesión</button>
+      <button id="signup-tab" class="secondary" type="button">Crear cuenta</button>
+    </div>
+
+    <form id="auth-form">
+      <div class="field">
+        <label for="email">Correo electrónico de Gmail</label>
+        <input id="email" type="email" placeholder="tuusuario@gmail.com"
+          autocomplete="email" required>
+      </div>
+      <div class="field">
+        <label for="password">Contraseña de ChattiNG</label>
+        <input id="password" type="password" minlength="6"
+          placeholder="Mínimo 6 caracteres" autocomplete="current-password" required>
+      </div>
+      <button id="auth-submit" class="primary" type="submit" style="width:100%">
+        Iniciar sesión
+      </button>
+    </form>
+    <div id="notice" role="status"></div>
+    <p class="small">Utiliza una contraseña propia de ChattiNG, no la contraseña de tu cuenta de Google.</p>
+  </section>
+
+  <section id="chat-view" class="chat-layout hidden">
+    <aside class="sidebar">
+      <h2>Conversaciones</h2>
+      <div class="room">
+        <strong>🌐 General</strong>
+        <div class="small">Sala pública de ChattiNG</div>
+      </div>
+      <div style="margin-top:24px">
+        <div class="small">Tu cuenta</div>
+        <p id="profile-name" style="font-weight:750;overflow-wrap:anywhere"></p>
+        <button id="logout" class="secondary" style="width:100%">
+          Cerrar sesión
+        </button>
+      </div>
+      <p class="small" style="margin-top:22px">
+        Próximamente: amigos, grupos, mensajes de voz y videollamadas.
+      </p>
+    </aside>
+
+    <section class="chat">
+      <div class="chat-head">
+        <div>
+          <h2>🌐 General</h2>
+          <div class="status" id="connection-status">Conectando...</div>
+        </div>
+        <div class="small">ChattiNG 1.0</div>
+      </div>
+
+      <div id="messages" aria-live="polite">
+        <div id="empty">Cargando mensajes...</div>
+      </div>
+
+      <form id="message-form" class="composer">
+        <input id="message-input" maxlength="2000"
+          placeholder="Escribe un mensaje..." autocomplete="off" required>
+        <button id="send-button" class="primary" type="submit">Enviar</button>
+      </form>
+    </section>
+  </section>
+
+  <div class="footer">ChattiNG · Un proyecto de NG</div>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  // Sustituye estos dos valores por los de tu proyecto Supabase.
+  const SUPABASE_URL = "https://nlokzypirpzvxtscdnwq.supabase.co/rest/v1/";
+  const SUPABASE_PUBLISHABLE_KEY = "https://nlokzypirpzvxtscdnwq.supabase.co/rest/v1/";
+
+  const $ = id => document.getElementById(id);
+
+  const authView = $("auth-view");
+  const chatView = $("chat-view");
+  const notice = $("notice");
+  const messagesBox = $("messages");
+
+  let supabase = null;
+  let currentUser = null;
+  let currentEmail = "";
+  let realtimeChannel = null;
+  let authMode = "login";
+  let displayedIds = new Set();
+  let authBusy = false;
+  let loadingMessages = false;
+
+  function showNotice(message, type = "") {
+    notice.textContent = message;
+    notice.className = type;
+  }
+
+  function displayName(email) {
+    return (email.split("@")[0] || "Usuario").slice(0, 24);
+  }
+
+  function setMode(mode) {
+    authMode = mode;
+    $("login-tab").className =
+      mode === "login" ? "primary" : "secondary";
+    $("signup-tab").className =
+      mode === "signup" ? "primary" : "secondary";
+    $("auth-submit").textContent =
+      mode === "login" ? "Iniciar sesión" : "Crear cuenta";
+    $("password").autocomplete =
+      mode === "login" ? "current-password" : "new-password";
+    showNotice("");
+  }
+
+  $("login-tab").addEventListener("click", () => setMode("login"));
+  $("signup-tab").addEventListener("click", () => setMode("signup"));
+
+  function formatTime(value) {
+    return new Date(value).toLocaleString("es-ES", {
+      day: "2-digit", month: "2-digit",
+      hour: "2-digit", minute: "2-digit"
+    });
+  }
+
+  function addMessage(message) {
+    if (!message || displayedIds.has(String(message.id))) return;
+    displayedIds.add(String(message.id));
+
+    const empty = $("empty");
+    if (empty) empty.remove();
+
+    const item = document.createElement("article");
+    item.className = "message" +
+      (currentUser && message.user_id === currentUser.id ? " mine" : "");
+
+    const top = document.createElement("div");
+    top.className = "message-top";
+
+    const username = document.createElement("span");
+    username.className = "message-user";
+    username.textContent = message.username || "Usuario";
+
+    const time = document.createElement("span");
+    time.className = "message-time";
+    time.textContent = formatTime(message.created_at);
+
+    const content = document.createElement("div");
+    content.className = "message-content";
+    content.textContent = message.content;
+
+    top.append(username, time);
+    item.append(top, content);
+    messagesBox.appendChild(item);
+    messagesBox.scrollTop = messagesBox.scrollHeight;
+  }
+
+  async function loadMessages() {
+    if (!supabase || loadingMessages) return;
+    loadingMessages = true;
+    $("connection-status").textContent = "Cargando mensajes...";
+
+    const { data, error } = await supabase
+      .from("messages")
+      .select("id, room_id, user_id, username, content, created_at")
+      .eq("room_id", "general")
+      .order("created_at", { ascending: true })
+      .limit(100);
+
+    loadingMessages = false;
+
+    if (error) {
+      $("connection-status").textContent = "Error al cargar mensajes";
+      console.error(error);
+      return;
+    }
+
+    messagesBox.replaceChildren();
+    displayedIds.clear();
+
+    if (!data || data.length === 0) {
+      const empty = document.createElement("div");
+      empty.id = "empty";
+      empty.textContent = "Todavía no hay mensajes. ¡Sé el primero en escribir!";
+      messagesBox.appendChild(empty);
+    } else {
+      data.forEach(addMessage);
+    }
+
+    $("connection-status").textContent = "● Conectado";
+  }
+
+  function subscribeToMessages() {
+    if (realtimeChannel) {
+      supabase.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+    }
+
+    realtimeChannel = supabase
+      .channel("chat-general-live")
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+        filter: "room_id=eq.general"
+      }, payload => addMessage(payload.new))
+      .subscribe(status => {
+        if (status === "SUBSCRIBED") {
+          $("connection-status").textContent = "● En línea";
+        } else if (status === "CHANNEL_ERROR" ||
+                   status === "TIMED_OUT") {
+          $("connection-status").textContent = "Problema de conexión";
+        }
+      });
+  }
+
+  async function showSession(session) {
+    currentUser = session ? session.user : null;
+    currentEmail = currentUser ? (currentUser.email || "") : "";
+
+    if (!currentUser) {
+      authView.classList.remove("hidden");
+      chatView.classList.add("hidden");
+      $("header-user").textContent = "Mensajería en línea";
+      if (realtimeChannel && supabase) {
+        await supabase.removeChannel(realtimeChannel);
+        realtimeChannel = null;
+      }
+      return;
+    }
+
+    authView.classList.add("hidden");
+    chatView.classList.remove("hidden");
+
+    const username = displayName(currentEmail);
+    $("header-user").textContent = username;
+    $("profile-name").textContent = username;
+
+    await loadMessages();
+    subscribeToMessages();
+  }
+
+  $("auth-form").addEventListener("submit", async event => {
+    event.preventDefault();
+    if (authBusy) return;
+
+    if (!supabase) {
+      showNotice("Configura primero la URL y la clave de Supabase.", "error");
+      return;
+    }
+
+    authBusy = true;
+    const button = $("auth-submit");
+    button.disabled = true;
+    showNotice(authMode === "login" ? "Iniciando sesión..." : "Creando cuenta...");
+
+    const email = $("email").value.trim().toLowerCase();
+    const password = $("password").value;
+
+    if (!email.endsWith("@gmail.com")) {
+      showNotice("Introduce una dirección que termine en @gmail.com.", "error");
+      authBusy = false;
+      button.disabled = false;
+      return;
+    }
+
+    try {
+      let result;
+
+      if (authMode === "signup") {
+        result = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { username: displayName(email) }
+          }
+        });
+      } else {
+        result = await supabase.auth.signInWithPassword({
+          email, password
+        });
+      }
+
+      if (result.error) throw result.error;
+
+      if (authMode === "signup" && !result.data.session) {
+        showNotice(
+          "Cuenta creada. Si no puedes entrar, pide al administrador que desactive la confirmación de correo en Supabase.",
+          "success"
+        );
+      } else {
+        showNotice("¡Listo!", "success");
+      }
+    } catch (error) {
+      showNotice(error.message || "No se pudo completar la operación.", "error");
+    } finally {
+      authBusy = false;
+      button.disabled = false;
+    }
+  });
+
+  $("message-form").addEventListener("submit", async event => {
+    event.preventDefault();
+    if (!currentUser || !supabase) return;
+
+    const input = $("message-input");
+    const button = $("send-button");
+    const content = input.value.trim();
+
+    if (!content) return;
+
+    button.disabled = true;
+
+    try {
+      const { error } = await supabase.from("messages").insert({
+        room_id: "general",
+        user_id: currentUser.id,
+        username: displayName(currentEmail),
+        content
+      });
+
+      if (error) throw error;
+      input.value = "";
+      input.focus();
+    } catch (error) {
+      alert("No se pudo enviar el mensaje: " + error.message);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  $("logout").addEventListener("click", async () => {
+    if (!supabase) return;
+    const { error } = await supabase.auth.signOut();
+    if (error) alert("No se pudo cerrar sesión: " + error.message);
+  });
+
+  async function init() {
+    if (SUPABASE_URL.startsWith("YOUR_") ||
+        SUPABASE_PUBLISHABLE_KEY.startsWith("YOUR_")) {
+      showNotice(
+        "Falta configurar Supabase. Sustituye la URL y la clave en el código.",
+        "error"
+      );
+      return;
+    }
+
+    try {
+      supabase = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_PUBLISHABLE_KEY
+      );
+
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      await showSession(data.session);
+
+      supabase.auth.onAuthStateChange((event, session) => {
+        if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+          setTimeout(() => showSession(session), 0);
+        }
+      });
+    } catch (error) {
+      showNotice(
+        "No se pudo conectar con Supabase. Revisa la URL, la clave y tu conexión.",
+        "error"
+      );
+      console.error(error);
+    }
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
