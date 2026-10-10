@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ChattiNG — NG</title>
+<title>NG·ChattiNG</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
@@ -116,7 +116,7 @@ p{line-height:1.5}
 <body>
 <header>
   <div>
-    <div class="brand">Chatti<span>NG</span></div>
+    <div class="brand">NG·Chatti<span>NG</span></div>
     <div class="small">Tu espacio para conectar</div>
   </div>
   <div id="header-user" class="small">Mensajería en línea</div>
